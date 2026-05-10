@@ -184,7 +184,6 @@ timeout = 60
 ## 项目结构
 
 ```
-```
 fluxlite/                   # 项目根目录
 │
 ├── pyproject.toml          # 项目元信息与依赖
