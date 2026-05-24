@@ -56,21 +56,33 @@ def _protect_key_file():
         user = os.environ.get("USERNAME", "")
         if user:
             import subprocess
-            subprocess.run(
-                ["icacls", path, "/inheritance:r", "/grant", f"{user}:F"],
-                capture_output=True,
-            )
+            try:
+                subprocess.run(
+                    ["icacls", path, "/inheritance:r", "/grant", f"{user}:F"],
+                    capture_output=True, timeout=10,
+                )
+            except Exception:
+                pass
     else:
-        KEY_FILE.chmod(0o600)
+        try:
+            KEY_FILE.chmod(0o600)
+        except OSError:
+            pass
 
 
 def _load_or_create_key() -> bytes:
-    if KEY_FILE.exists():
-        return KEY_FILE.read_bytes()
+    try:
+        if KEY_FILE.exists():
+            return KEY_FILE.read_bytes()
+    except (OSError, PermissionError):
+        pass
     key = _get_machine_key()
-    KEY_FILE.parent.mkdir(parents=True, exist_ok=True)
-    KEY_FILE.write_bytes(key)
-    _protect_key_file()
+    try:
+        KEY_FILE.parent.mkdir(parents=True, exist_ok=True)
+        KEY_FILE.write_bytes(key)
+        _protect_key_file()
+    except (OSError, PermissionError):
+        pass
     return key
 
 
@@ -87,7 +99,7 @@ def encrypt_value(plain: str) -> str:
         try:
             return _fernet().encrypt(plain.encode()).decode()
         except Exception:
-            pass
+            return plain
     return plain
 
 
@@ -98,15 +110,20 @@ def decrypt_value(encrypted: str) -> str:
         try:
             return _fernet().decrypt(encrypted.encode()).decode()
         except Exception:
-            pass
+            return encrypted
     return encrypted
 
 
 def load_config() -> dict:
     if not CONFIG_PATH.exists():
         return {}
-    with open(CONFIG_PATH, "rb") as f:
-        cfg = dict(tomllib.load(f))
+    try:
+        with open(CONFIG_PATH, "rb") as f:
+            cfg = dict(tomllib.load(f))
+    except (OSError, PermissionError) as e:
+        return {}
+    except tomllib.TOMLDecodeError:
+        return {}
     api_key = cfg.get("api", {}).get("key", "")
     if api_key and not api_key.startswith("sk-"):
         cfg.setdefault("api", {})["key"] = decrypt_value(api_key)
@@ -117,7 +134,10 @@ def load_config() -> dict:
 
 
 def save_config(config: dict):
-    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return
     cfg = {}
     for section, values in config.items():
         cfg[section] = dict(values)
@@ -127,8 +147,11 @@ def save_config(config: dict):
     tavily_key = cfg.get("tavily", {}).get("key", "")
     if tavily_key:
         cfg["tavily"]["key"] = encrypt_value(tavily_key)
-    with open(CONFIG_PATH, "wb") as f:
-        tomli_w.dump(cfg, f)
+    try:
+        with open(CONFIG_PATH, "wb") as f:
+            tomli_w.dump(cfg, f)
+    except (OSError, PermissionError):
+        pass
 
 
 def is_configured() -> bool:

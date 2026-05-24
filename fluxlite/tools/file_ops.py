@@ -47,39 +47,57 @@ def _safe_path(path_str: str) -> tuple[Path, str]:
 
 def write(path: str, content: str) -> str:
     p, _ = _safe_path(_sandbox_resolve(path))
-    p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(content, encoding="utf-8")
+    try:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(content, encoding="utf-8")
+    except OSError as e:
+        return f"[file] Write failed: {e}"
     return f"[file] Written {len(content)} chars to {p}"
 
 
 def read(path: str) -> str:
     sandboxed = _sandbox_resolve(path)
     p, _ = _safe_path(sandboxed)
-    if p.exists():
-        return p.read_text(encoding="utf-8")
+    try:
+        if p.exists():
+            return p.read_text(encoding="utf-8")
+    except (OSError, PermissionError) as e:
+        return f"[file] Read failed: {e}"
     p, _ = _safe_path(path)
-    if not p.exists():
-        return f"[file] File not found: {p}"
-    return p.read_text(encoding="utf-8")
+    try:
+        if not p.exists():
+            return f"[file] File not found: {p}"
+        return p.read_text(encoding="utf-8")
+    except (OSError, PermissionError) as e:
+        return f"[file] Read failed: {e}"
 
 
 def edit(path: str, old_string: str, new_string: str) -> str:
     p, _ = _safe_path(_sandbox_resolve(path))
     if not p.exists():
         return f"[file] File not found: {p}"
-    content = p.read_text(encoding="utf-8")
+    try:
+        content = p.read_text(encoding="utf-8")
+    except (OSError, PermissionError) as e:
+        return f"[file] Read failed: {e}"
     if old_string not in content:
         return f"[file] old_string not found in {p}"
     new_content = content.replace(old_string, new_string, 1)
-    p.write_text(new_content, encoding="utf-8")
+    try:
+        p.write_text(new_content, encoding="utf-8")
+    except (OSError, PermissionError) as e:
+        return f"[file] Write failed: {e}"
     return f"[file] Replaced 1 occurrence in {p}"
 
 
 def append(path: str, content: str) -> str:
     p, _ = _safe_path(_sandbox_resolve(path))
-    p.parent.mkdir(parents=True, exist_ok=True)
-    with open(p, "a", encoding="utf-8") as f:
-        f.write(content)
+    try:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        with open(p, "a", encoding="utf-8") as f:
+            f.write(content)
+    except OSError as e:
+        return f"[file] Append failed: {e}"
     return f"[file] Appended {len(content)} chars to {p}"
 
 
@@ -87,7 +105,10 @@ def delete(path: str) -> str:
     p, _ = _safe_path(_sandbox_resolve(path))
     if not p.exists():
         return f"[file] File not found: {p}"
-    p.unlink()
+    try:
+        p.unlink()
+    except OSError as e:
+        return f"[file] Delete failed: {e}"
     return f"[file] Deleted {p}"
 
 
@@ -108,8 +129,12 @@ def list_dir(path: str = ".", pattern: str = "") -> str:
 
     result = []
     for item in items:
-        suffix = "/" if item.is_dir() else ""
-        size = item.stat().st_size if item.is_file() else 0
+        try:
+            suffix = "/" if item.is_dir() else ""
+            size = item.stat().st_size if item.is_file() else 0
+        except OSError:
+            result.append(f"  {item.name} (?)")
+            continue
         if size:
             size_str = _format_size(size)
             result.append(f"  {item.name}{suffix} ({size_str})")

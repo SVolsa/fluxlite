@@ -23,7 +23,7 @@ def build_fluxlite_md() -> str:
         if p.exists():
             try:
                 return p.read_text(encoding="utf-8").strip()
-            except Exception:
+            except (OSError, PermissionError, UnicodeDecodeError):
                 pass
     return ""
 
@@ -35,7 +35,7 @@ def build_project_memory() -> str:
     if p.exists():
         try:
             return p.read_text(encoding="utf-8").strip()
-        except Exception:
+        except (OSError, PermissionError):
             pass
     return ""
 
@@ -47,7 +47,7 @@ def build_instructions_md() -> str:
         if p.exists():
             try:
                 return p.read_text(encoding="utf-8").strip()
-            except Exception:
+            except (OSError, PermissionError):
                 pass
     return ""
 
@@ -119,7 +119,7 @@ def build_git_context() -> str:
             parts.append(f"Recent:\n{log}")
 
         return "\n\n".join(parts)
-    except Exception:
+    except (subprocess.TimeoutExpired, OSError, PermissionError):
         return ""
 
 
@@ -172,7 +172,7 @@ def generate_fluxlite_md(console, radio_select) -> None:
                     name = line.split("=", 1)[1].strip().strip("\"'")
                 if line.startswith("description "):
                     desc = line.split("=", 1)[1].strip().strip("\"'")
-        except Exception:
+        except (OSError, PermissionError, UnicodeDecodeError):
             pass
 
     if not desc and (cwd / "package.json").exists():
@@ -181,7 +181,7 @@ def generate_fluxlite_md(console, radio_select) -> None:
             pkg = json.loads((cwd / "package.json").read_text(encoding="utf-8"))
             name = pkg.get("name", name)
             desc = pkg.get("description", desc) or ""
-        except Exception:
+        except (OSError, PermissionError, json.JSONDecodeError, ValueError):
             pass
 
     if not desc and (cwd / "README.md").exists():
@@ -191,7 +191,7 @@ def generate_fluxlite_md(console, radio_select) -> None:
                 if line and not line.startswith("#"):
                     desc = line[:120]
                     break
-        except Exception:
+        except (OSError, PermissionError, UnicodeDecodeError):
             pass
 
     # Detect commands
@@ -253,7 +253,11 @@ def generate_fluxlite_md(console, radio_select) -> None:
     ]
 
     content = "\n".join(lines) + "\n"
-    target.write_text(content, encoding="utf-8")
+    try:
+        target.write_text(content, encoding="utf-8")
+    except (OSError, PermissionError):
+        console.print(f"  [red]Failed to write FLUXLITE.md[/]")
+        return
     console.print(f"  [green]FLUXLITE.md generated ({len(content)} chars)[/]")
     console.print(f"  [dim]Edit: {target}[/]")
     console.print(f"  [dim]Restart FluxLite to load project context.[/]")

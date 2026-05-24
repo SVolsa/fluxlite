@@ -45,7 +45,7 @@ def _migrate_old() -> dict | None:
             else:
                 _OLD_MEMORY_PATH.unlink(missing_ok=True)
             return profile
-    except Exception:
+    except (json.JSONDecodeError, OSError, PermissionError, TypeError):
         pass
     return None
 
@@ -66,11 +66,14 @@ def load_profile() -> dict:
 
 
 def save_profile(profile: dict):
-    PROFILE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    PROFILE_PATH.write_text(
-        json.dumps(profile, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    try:
+        PROFILE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        PROFILE_PATH.write_text(
+            json.dumps(profile, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+    except (OSError, PermissionError, TypeError):
+        pass
 
 
 def add_rule(profile: dict, rule: str):

@@ -13,11 +13,14 @@ DEFAULT_TIMEOUT = 10
 
 
 def _is_executable(path: Path) -> bool:
-    if not path.is_file():
+    try:
+        if not path.is_file():
+            return False
+        if sys.platform == "win32":
+            return path.suffix.lower() in (".bat", ".cmd", ".exe", ".ps1", ".py")
+        return bool(path.stat().st_mode & 0o111)
+    except OSError:
         return False
-    if sys.platform == "win32":
-        return path.suffix.lower() in (".bat", ".cmd", ".exe", ".ps1", ".py")
-    return bool(path.stat().st_mode & 0o111)
 
 
 def _discover(direction: str, tool_name: str) -> list[Path]:
@@ -117,8 +120,8 @@ def run_single(hook_name: str, args: str = "{}") -> str:
     if args:
         try:
             parsed_args = json.loads(args)
-        except json.JSONDecodeError:
-            pass
+        except json.JSONDecodeError as e:
+            return f"Invalid JSON args: {e}"
 
     category_dir = HOOKS_DIR / hook_name
     if category_dir.is_dir():

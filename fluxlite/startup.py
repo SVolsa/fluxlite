@@ -99,7 +99,7 @@ def print_header(model: str = ""):
         left_raw.append(("Model:", model))
 
     right_raw = [
-        ("Version", "0.5.3"),
+        ("Version", "0.5.4"),
         ("Author:", "Volsa"),
         ("GitHub:", "svolsa"),
     ]

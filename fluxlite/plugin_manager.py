@@ -35,7 +35,7 @@ def _load_state():
     try:
         if _STATE_FILE.exists():
             _state = json.loads(_STATE_FILE.read_text(encoding="utf-8"))
-    except Exception:
+    except (json.JSONDecodeError, OSError, PermissionError):
         _state = {}
 
 
@@ -43,7 +43,7 @@ def _save_state():
     try:
         _STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
         _STATE_FILE.write_text(json.dumps(_state, ensure_ascii=False, indent=2), encoding="utf-8")
-    except Exception:
+    except (OSError, PermissionError, TypeError):
         pass
 
 

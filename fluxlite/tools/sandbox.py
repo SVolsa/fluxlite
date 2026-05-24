@@ -55,7 +55,9 @@ class _SandboxState:
             return "Sandbox not active"
         diffs = []
         for f in cls._temp_dir.rglob("*"):
-            if f.is_file():
+            if not f.is_file():
+                continue
+            try:
                 rel = f.relative_to(cls._temp_dir)
                 orig = cls._original_cwd / rel
                 sandbox_text = f.read_text(encoding="utf-8", errors="replace")
@@ -75,6 +77,8 @@ class _SandboxState:
                     diffs.append(f"--- /dev/null\n+++ {rel}\n" + "\n".join(
                         f"+{l}" for l in sandbox_text.splitlines()
                     ))
+            except (OSError, PermissionError, UnicodeDecodeError):
+                continue
         if not diffs:
             return "No pending changes in sandbox"
         return "\n\n".join(diffs)
@@ -85,19 +89,30 @@ class _SandboxState:
             return "Sandbox not active"
         count = 0
         for f in cls._temp_dir.rglob("*"):
-            if f.is_file():
+            if not f.is_file():
+                continue
+            try:
                 rel = f.relative_to(cls._temp_dir)
                 dest = cls._original_cwd / rel
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(f, dest)
                 count += 1
+            except (OSError, PermissionError):
+                continue
         return f"Applied {count} file(s) from sandbox to project"
 
     @classmethod
     def discard(cls) -> str:
         if cls._temp_dir and cls._temp_dir.exists():
-            shutil.rmtree(cls._temp_dir)
-        cls._temp_dir = Path(tempfile.mkdtemp(prefix="fluxlite_sandbox_"))
+            try:
+                shutil.rmtree(cls._temp_dir)
+            except OSError:
+                pass
+        try:
+            cls._temp_dir = Path(tempfile.mkdtemp(prefix="fluxlite_sandbox_"))
+        except OSError:
+            cls._temp_dir = None
+            return "Sandbox discard failed"
         return "Sandbox discarded (fresh empty sandbox created)"
 
     @classmethod
@@ -106,7 +121,10 @@ class _SandboxState:
             return "Sandbox: disabled"
         count = 0
         if cls._temp_dir:
-            count = sum(1 for _ in cls._temp_dir.rglob("*") if _.is_file())
+            try:
+                count = sum(1 for _ in cls._temp_dir.rglob("*") if _.is_file())
+            except OSError:
+                count = -1
         return f"Sandbox: enabled  files: {count}  dir: {cls._temp_dir}"
 
 

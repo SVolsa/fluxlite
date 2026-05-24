@@ -32,16 +32,19 @@ class _TerminalSession:
         env = os.environ.copy()
         env.setdefault("TERM", "dumb")
 
-        self.process = subprocess.Popen(
-            [shell_path],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            env=env,
-            text=True,
-            bufsize=1,
-            cwd=str(Path.cwd()),
-        )
+        try:
+            self.process = subprocess.Popen(
+                [shell_path],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                env=env,
+                text=True,
+                bufsize=1,
+                cwd=str(Path.cwd()),
+            )
+        except (FileNotFoundError, OSError) as e:
+            raise RuntimeError(f"Failed to start terminal: {e}")
         self._alive = True
         self._lock = threading.Lock()
         self._line_queue: queue.Queue[str | None] = queue.Queue()
@@ -79,8 +82,12 @@ class _TerminalSession:
         full = f"{command} & echo {marker}\n" if os.name == "nt" else f"{command}; echo {marker}\n"
 
         with self._lock:
-            self.process.stdin.write(full)
-            self.process.stdin.flush()
+            try:
+                self.process.stdin.write(full)
+                self.process.stdin.flush()
+            except (BrokenPipeError, OSError) as e:
+                self._alive = False
+                return f"[write error: {e}]"
 
             output = []
             deadline = time.monotonic() + timeout
@@ -108,12 +115,16 @@ class _TerminalSession:
 
     def close(self):
         self._alive = False
-        if self.process.poll() is None:
-            self.process.terminate()
-            try:
-                self.process.wait(timeout=3)
-            except subprocess.TimeoutExpired:
-                self.process.kill()
+        try:
+            if self.process.poll() is None:
+                self.process.terminate()
+                try:
+                    self.process.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    self.process.kill()
+                    self.process.wait(timeout=2)
+        except (OSError, subprocess.SubprocessError):
+            pass
 
 
 def terminal_handler(

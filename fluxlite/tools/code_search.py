@@ -75,9 +75,12 @@ def glob_handler(pattern: str, path: str = ".") -> str:
 
     lines = []
     for i in items[:100]:
-        rel = i.relative_to(root)
-        suffix = "/" if i.is_dir() else ""
-        size = i.stat().st_size if i.is_file() else 0
+        try:
+            rel = i.relative_to(root)
+            suffix = "/" if i.is_dir() else ""
+            size = i.stat().st_size if i.is_file() else 0
+        except (OSError, ValueError):
+            continue
         size_str = f" ({size}B)" if size else ""
         lines.append(f"  {rel}{suffix}{size_str}")
     if len(items) > 100:

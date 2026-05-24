@@ -20,11 +20,14 @@ def load_memories() -> list:
 
 
 def save_memories(entries: list):
-    MEMORY_PATH.parent.mkdir(parents=True, exist_ok=True)
-    MEMORY_PATH.write_text(
-        json.dumps({"memories": entries}, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    try:
+        MEMORY_PATH.parent.mkdir(parents=True, exist_ok=True)
+        MEMORY_PATH.write_text(
+            json.dumps({"memories": entries}, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+    except (OSError, PermissionError, TypeError):
+        pass
 
 
 def add_memory(content: str) -> dict:

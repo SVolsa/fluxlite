@@ -129,7 +129,7 @@ def _save_session(messages):
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         _trim_history()
-    except Exception:
+    except (OSError, PermissionError, TypeError, ValueError):
         pass
 
 
@@ -161,7 +161,7 @@ def _load_session():
             global _SESSION_PATH
             _SESSION_PATH = latest
             return data
-    except Exception:
+    except (OSError, PermissionError, json.JSONDecodeError, ValueError, TypeError):
         pass
     return None
 
@@ -324,7 +324,7 @@ def _quality_gate(path: str) -> str | None:
         return None
     try:
         source = Path(path).read_text(encoding="utf-8")
-    except Exception:
+    except (OSError, PermissionError, UnicodeDecodeError):
         return None
     try:
         ast.parse(source)
@@ -336,7 +336,7 @@ def _quality_gate(path: str) -> str | None:
 def _auto_fix_file(path: str, error_msg: str, provider) -> str | None:
     try:
         source = Path(path).read_text(encoding="utf-8")
-    except Exception:
+    except (OSError, PermissionError, UnicodeDecodeError):
         return None
 
     ext = Path(path).suffix
@@ -360,7 +360,7 @@ def _auto_fix_file(path: str, error_msg: str, provider) -> str | None:
         return None
 
 
-def _auto_compress(messages: list, max_tok: int):
+def _auto_compress
     total = _cumulative_tokens["input"] + _cumulative_tokens["output"]
     if total < max_tok * 0.88:
         return
@@ -900,5 +900,5 @@ def run_app(
                 if r.returncode == 0:
                     short = r.stdout.strip().split("\n")[-1] if r.stdout.strip() else "committed"
                     console.print(f"  [{GREEN}]\\u2713 {short}[/]")
-            except Exception:
+            except (subprocess.TimeoutExpired, OSError, PermissionError):
                 pass

@@ -20,16 +20,19 @@ def load_config() -> list[dict]:
     try:
         data = json.loads(MCP_CONFIG.read_text(encoding="utf-8"))
         return data.get("servers", [])
-    except (json.JSONDecodeError, Exception):
+    except (json.JSONDecodeError, OSError, PermissionError):
         return []
 
 
 def save_config(servers: list[dict]):
-    MCP_CONFIG.parent.mkdir(parents=True, exist_ok=True)
-    MCP_CONFIG.write_text(
-        json.dumps({"servers": servers}, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    try:
+        MCP_CONFIG.parent.mkdir(parents=True, exist_ok=True)
+        MCP_CONFIG.write_text(
+            json.dumps({"servers": servers}, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+    except (OSError, PermissionError, TypeError):
+        pass
 
 
 def _send(proc: subprocess.Popen, msg: dict) -> dict | None:
@@ -86,12 +89,15 @@ def start_server(name: str, cmd: str, args: list[str], env: dict | None = None) 
         "params": {
             "protocolVersion": "2024-11-05",
             "capabilities": {},
-            "clientInfo": {"name": "fluxlite", "version": "0.5.3"},
+            "clientInfo": {"name": "fluxlite", "version": "0.5.4"},
         },
     }
     resp = _send(proc, init_req)
     if resp is None or resp.get("error"):
-        proc.terminate()
+        try:
+            proc.terminate()
+        except OSError:
+            pass
         return f"Initialize failed: {resp}"
 
     _send(proc, {"jsonrpc": "2.0", "method": "notifications/initialized"})
@@ -121,7 +127,7 @@ def stop_server(name: str):
         try:
             server["process"].terminate()
             server["process"].wait(timeout=3)
-        except Exception:
+        except (OSError, subprocess.TimeoutExpired):
             pass
 
 
