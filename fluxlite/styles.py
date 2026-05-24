@@ -1,7 +1,6 @@
 import sys
 from rich.style import Style
 
-# Color scheme (dark theme)
 CYAN = "#00f5d4"
 GREEN = "#00ff9d"
 PURPLE = "#b388ff"
@@ -13,17 +12,14 @@ WHITE = "#ffffff"
 GRAY = "#545454"
 DIM = "#3a3a3a"
 
-# Additional UI colors
-GRAY_LIGHT = "#cccccc"     # User message text
-WHITE_SOFT = "#e0e0e0"    # AI response body text
+GRAY_LIGHT = "#cccccc"
+WHITE_SOFT = "#e0e0e0"
 BOLD = "bold"
 
-# Check if terminal supports Unicode/emoji
 _SUPPORTS_UTF = sys.stdout.encoding and (
     "utf" in sys.stdout.encoding.lower() or "65001" in sys.stdout.encoding
 )
 
-# Windows GBK-safe icons
 if _SUPPORTS_UTF:
     ICON_TOOL = "\u26a1"
     ICON_FILE = "\U0001f4c1"
@@ -45,7 +41,6 @@ else:
     ICON_USER = "[You]"
     ICON_BOT = "[Bot]"
 
-# Style objects
 STYLE_USER = Style(color=GREEN, bold=True)
 STYLE_BOT = Style(color=CYAN, bold=True)
 STYLE_TOOL = Style(color=ORANGE, italic=True)

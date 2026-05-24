@@ -1,58 +1,39 @@
+"""Dynamic memories — knowledge learned during conversation (~/.fluxlite/memory.json)."""
 import json
 from pathlib import Path
 from datetime import datetime
 
 MEMORY_PATH = Path.home() / ".fluxlite" / "memory.json"
 
-DEFAULT_MEMORY = {
-    "identity": {
-        "name": "",
-        "personality": "",
-        "user_name": "",
-        "created_at": "",
-    },
-    "memories": [],
-    "rules": [],
-}
 
-
-def load_memory() -> dict:
+def load_memories() -> list:
     if MEMORY_PATH.exists():
         try:
-            with open(MEMORY_PATH, encoding="utf-8") as f:
-                data = json.load(f)
-            if "identity" in data:
+            data = json.loads(MEMORY_PATH.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                return data.get("memories", [])
+            if isinstance(data, list):
                 return data
-        except (json.JSONDecodeError, IOError):
+        except (json.JSONDecodeError, IOError, OSError):
             pass
-    import copy
-    return copy.deepcopy(DEFAULT_MEMORY)
+    return []
 
 
-def save_memory(memory: dict):
+def save_memories(entries: list):
     MEMORY_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(MEMORY_PATH, "w", encoding="utf-8") as f:
-        json.dump(memory, f, ensure_ascii=False, indent=2)
+    MEMORY_PATH.write_text(
+        json.dumps({"memories": entries}, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
 
 
-def add_memory(memory: dict, content: str):
+def add_memory(content: str) -> dict:
     entry = {
         "id": datetime.now().strftime("%Y%m%d%H%M%S%f"),
         "content": content,
         "created_at": datetime.now().isoformat(),
     }
-    memory["memories"].append(entry)
-    save_memory(memory)
-
-
-def add_rule(memory: dict, rule: str):
-    memory["rules"].append(rule)
-    save_memory(memory)
-
-
-def remove_rule(memory: dict, index: int) -> bool:
-    if 0 <= index < len(memory["rules"]):
-        memory["rules"].pop(index)
-        save_memory(memory)
-        return True
-    return False
+    entries = load_memories()
+    entries.append(entry)
+    save_memories(entries)
+    return entry

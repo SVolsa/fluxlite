@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 
+from .sandbox import resolve_path as _sandbox_resolve
 WINDOWS_BLOCKED = [
     Path("C:\\Windows"),
     Path("C:\\Program Files"),
@@ -36,7 +37,6 @@ def _is_safe(path: Path) -> tuple[bool, str]:
                 continue
     return True, ""
 
-
 def _safe_path(path_str: str) -> tuple[Path, str]:
     p = Path(path_str).resolve()
     safe, msg = _is_safe(p)
@@ -46,22 +46,25 @@ def _safe_path(path_str: str) -> tuple[Path, str]:
 
 
 def write(path: str, content: str) -> str:
-    p, _ = _safe_path(path)
+    p, _ = _safe_path(_sandbox_resolve(path))
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(content, encoding="utf-8")
     return f"[file] Written {len(content)} chars to {p}"
 
 
 def read(path: str) -> str:
+    sandboxed = _sandbox_resolve(path)
+    p, _ = _safe_path(sandboxed)
+    if p.exists():
+        return p.read_text(encoding="utf-8")
     p, _ = _safe_path(path)
     if not p.exists():
         return f"[file] File not found: {p}"
-    content = p.read_text(encoding="utf-8")
-    return content
+    return p.read_text(encoding="utf-8")
 
 
 def edit(path: str, old_string: str, new_string: str) -> str:
-    p, _ = _safe_path(path)
+    p, _ = _safe_path(_sandbox_resolve(path))
     if not p.exists():
         return f"[file] File not found: {p}"
     content = p.read_text(encoding="utf-8")
@@ -73,7 +76,7 @@ def edit(path: str, old_string: str, new_string: str) -> str:
 
 
 def append(path: str, content: str) -> str:
-    p, _ = _safe_path(path)
+    p, _ = _safe_path(_sandbox_resolve(path))
     p.parent.mkdir(parents=True, exist_ok=True)
     with open(p, "a", encoding="utf-8") as f:
         f.write(content)
@@ -81,7 +84,7 @@ def append(path: str, content: str) -> str:
 
 
 def delete(path: str) -> str:
-    p, _ = _safe_path(path)
+    p, _ = _safe_path(_sandbox_resolve(path))
     if not p.exists():
         return f"[file] File not found: {p}"
     p.unlink()
@@ -89,7 +92,7 @@ def delete(path: str) -> str:
 
 
 def list_dir(path: str = ".", pattern: str = "") -> str:
-    p, _ = _safe_path(path)
+    p, _ = _safe_path(_sandbox_resolve(path))
     if not p.exists():
         return f"[file] Directory not found: {p}"
     if not p.is_dir():

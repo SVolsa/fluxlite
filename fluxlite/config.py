@@ -107,7 +107,6 @@ def load_config() -> dict:
         return {}
     with open(CONFIG_PATH, "rb") as f:
         cfg = dict(tomllib.load(f))
-    # Decrypt keys on load
     api_key = cfg.get("api", {}).get("key", "")
     if api_key and not api_key.startswith("sk-"):
         cfg.setdefault("api", {})["key"] = decrypt_value(api_key)
@@ -122,7 +121,6 @@ def save_config(config: dict):
     cfg = {}
     for section, values in config.items():
         cfg[section] = dict(values)
-    # Encrypt keys on save
     api_key = cfg.get("api", {}).get("key", "")
     if api_key:
         cfg["api"]["key"] = encrypt_value(api_key)
