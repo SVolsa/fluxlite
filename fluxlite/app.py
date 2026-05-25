@@ -46,7 +46,13 @@ class _Spinner:
         for c in itertools.cycle('|/-\\'):
             if not self._running:
                 break
-            sys.stdout.write(f'\r  {c} {self._message} ')
+            try:
+                term_w = shutil.get_terminal_size().columns
+            except Exception:
+                term_w = 80
+            text = f'  {c} {self._message} '
+            text = text.ljust(min(term_w - 1, 120))
+            sys.stdout.write(f'\r{text}')
             sys.stdout.flush()
             time.sleep(0.1)
 
@@ -57,7 +63,7 @@ class _Spinner:
         if self._thread and self._thread.is_alive():
             self._thread.join(1.0)
         self._thread = None
-        sys.stdout.write('\r' + ' ' * 30 + '\r')
+        sys.stdout.write('\r\033[2K\r')
         sys.stdout.flush()
 
 
@@ -360,7 +366,7 @@ def _auto_fix_file(path: str, error_msg: str, provider) -> str | None:
         return None
 
 
-def _auto_compress
+def _auto_compress(messages: list, max_tok: int):
     total = _cumulative_tokens["input"] + _cumulative_tokens["output"]
     if total < max_tok * 0.88:
         return
@@ -452,6 +458,8 @@ def _stream_response(provider, messages, tool_schemas, agent_name, max_retries=3
             return dict(content=content, reasoning=reasoning, tool_calls=tool_calls,
                         usage=usage, received=received, truncated=False)
         except KeyboardInterrupt:
+            if not received:
+                spinner.stop()
             console.print(f"\n  [{ORANGE}]! {_('truncated')}[/]")
             return dict(content=content, reasoning=reasoning, tool_calls=tool_calls,
                         usage=usage, received=received, truncated=True)
